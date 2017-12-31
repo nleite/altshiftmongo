@@ -8,7 +8,7 @@ PostgreSQL to support faster queries.
 The situation
 -------------
 
-Let's see how that would be looking like using MongoDB instead.
+Let's see how that would be looking like using MongoDB.
 
 **Array Types in BSON**
 
@@ -121,12 +121,140 @@ In this case we will make use of the `dot notation`_ and define the array index:
     "int_array" : [ 1, 2, 3 ]
   }
 
+
+**Match documents on subdocument field array elements**
+
+Things get a lot more interesting when dealing with subdocuments as array
+elements.
+
+.. code-block:: js
+
+  db.arrays.insert({
+    "_id": ObjectId("5a37168049046afc0b63c7c3"),
+    "complex_array": [
+      {
+        "name": "Bernie",
+        "grade": 10,
+        "city": "New York"
+      },
+      {
+        "name": "Ernie",
+        "grade": 12,
+        "city": "New York"
+      },
+      {
+        "name": "Dottie",
+        "grade": 10,
+        "city": "Porto"
+      }
+    ]
+  })
+
+Given this array with subdocuments, we can match the document based on any field
+of the inner array subdocument fields:
+
+.. code-block:: js
+
+  db.arrays.find({ "comples_array.name": "Bernie"  })
+
+If our query is looking for the composition of more than one field in a
+subdocument, we will have to use ``$elemMatch`` operator:
+
+.. code-block:: js
+
+  db.arrays.find({
+    "comples_array": {
+      "$elemMatch": {
+        "name": "Dottie",
+        "city": "Porto"  }
+      }
+    })
+
+
+Using GO
+--------
+
+There are a few opensource, community supported `MongoDB GO`_ libraries out
+there.
+
+The most popular GO MongoDB library (at the time of this writting) used is
+`mgo`_.
+Given the popular vote, we will be using **mgo** in for all of our examples.
+
+The first thing we need to do is establish a database connection/session
+
+.. code-block:: go
+
+  package main
+
+  import (
+  	"log"
+
+  	"gopkg.in/mgo.v2"
+  )
+
+  func main() {
+  	session, err := mgo.Dial("localhost:27017")
+  	if err != nil {
+  		log.Fatal("Make sure your ``mongod`` is up and running on port **27017**")
+  		panic(err)
+  	}
+  	defer session.Close()
+
+  	// ... now we are ready to start using our db
+  }
+
+Once we have session, we can then initialize a DB and Collection objects.
+
+.. code-block:: go
+
+  db := session.DB("altshiftmongo")
+  collection := db.C("arrays")
+
+We will use collections to store documents.
+
+.. code-block:: go
+
+  type SomeArray struct {
+    SomeArray []int `json:"some_array" bson:"some_array"`
+  }
+
+Let's start by using a simple ``SomeArray`` struct to operate data in go.
+
+.. code-block:: go
+
+  func main(){
+    // ...
+    doc1 := SomeArray{[]int{1, 2, 3, 4}}
+    insertErr := collection.Insert(&doc1)
+    if insertErr != nil {
+      log.Fatal(err)
+    }
+
+  }
+
+To store documents we can simply pass pointer to the structure we want store,
+to the ``Insert`` method of our ``Collection``.
+
+ 
+
+
+
+
 Further Reading
 ---------------
+
+MongoDB offers a wide variety of `array query`_ and `array update`_ operators.
+That allows us to, from the database prespective, have a quite extensive
+manuverability on how to deal with array fields.
 
 
 Other Topics
 ------------
 
+.. _`mgo`: https://labix.org/mgo
 .. _`OpsDash`: https://www.opsdash.com/blog/postgres-arrays-golang.html?h=1
 .. _`SQL99 arrays type`: https://www.iso.org/standard/26197.html
+.. _`array query`: https://docs.mongodb.com/manual/reference/operator/query-array/
+.. _`array update`: https://docs.mongodb.com/manual/reference/operator/update-array/
+.. _`MongoDB GO libraries`: https://docs.mongodb.com/ecosystem/drivers/community-supported-drivers/
