@@ -174,12 +174,12 @@ subdocument, we will have to use ``$elemMatch`` operator:
 Using GO
 --------
 
-There are a few opensource, community supported `MongoDB GO`_ libraries out
+There are a few opensource community supported `MongoDB GO`_ libraries out
 there.
 
-The most popular GO MongoDB library (at the time of this writting) used is
+The most popular GO MongoDB library (at the time of this writting) is
 `mgo`_.
-Given the popular vote, we will be using **mgo** in for all of our examples.
+Given the popular vote, we will be using **mgo** in this set of examples.
 
 The first thing we need to do is establish a database connection/session
 
@@ -204,7 +204,8 @@ The first thing we need to do is establish a database connection/session
   	// ... now we are ready to start using our db
   }
 
-Once we have session, we can then initialize a DB and Collection objects.
+Once we have session, we can then initialize a **DB** and **Collection**
+instances.
 
 .. code-block:: go
 
@@ -234,9 +235,85 @@ Let's start by using a simple ``SomeArray`` struct to operate data in go.
   }
 
 To store documents we can simply pass pointer to the structure we want store,
-to the ``Insert`` method of our ``Collection``.
+to the ``Insert`` function of our ``Collection`` object.
 
- 
+`mgo`_ will be marshalling our ``SomeArray`` type into a ``BSON`` object and
+sent it to MongoDB. All communication between the client application and
+MongoDB are done by exchanging `wire protocol`_ messages, which are
+themselves BSON based messages.
+
+.. code-block:: sh
+
+  mongo altshiftmongo --eval 'db.arrays.find().pretty()' --quiet
+  {
+    "_id" : ObjectId("5a6c918ab0e288905514ada8"),
+      "some_array" : [
+        1,
+        2,
+        3,
+        4
+      ]
+  }
+
+If go look into the database using the ``mongo`` shell client, we can see our
+newly inserted document.
+
+Collection with different documents
+------------------------------------
+
+As I mentioned in the first section of this post, we can infact have different
+*shapes* of documents throughout our collections.
+
+.. code-block:: go
+
+  type StringArray struct {
+    StringArray []string `json:"string_array" bson:"string_array"`
+  }
+
+In this example, apart from the ``SomeArray`` type, there's another type called
+``StringArray`` that, as name indicates, a list of string type values.
+
+.. code-block:: go
+
+  doc2 := StringArray{[]string{"bernie", "ernie", "dottie"}}
+  insertErr := collection.Insert(&doc2)
+  if insertErr != nil {
+    log.Fatal(err)
+  }
+
+Looking back into the database we can find the two different documents in the
+same collection.
+
+.. code-block:: sh
+
+  mongo altshiftmongo --eval 'db.arrays.find().pretty()' --quiet
+  {
+  "_id" : ObjectId("5a6c9551b0e288905514adcc"),
+  "some_array" : [
+    1,
+    2,
+    3,
+    4
+  ]
+  }
+  {
+  "_id" : ObjectId("5a6c9551b0e288905514adcf"),
+  "string_array" : [
+    "bernie",
+    "ernie",
+    "dottie"
+  ]
+  }
+
+
+Find Documents
+--------------
+
+Obviously, the driver needs to allow a full set of CRUD operations, which include
+the capability of retrieving back to the client application, documents based on some query / filtering criteria.
+
+In traditional SQL we would be using a ``SELECT`` statement, in MongoDB we can
+simply express query based on a struct expressing the matching criteria.
 
 
 
